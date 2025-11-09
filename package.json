@@ -1,0 +1,26 @@
+{
+  "name": "pixel-city",
+  "version": "1.0.0",
+  "description": "Pixel City — Build Together Simulator - A collaborative pixel art building game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "pixel-art",
+    "collaborative",
+    "websocket",
+    "game",
+    "multiplayer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
+
