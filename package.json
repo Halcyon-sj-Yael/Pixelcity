@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "private": "node private-server.js",
+    "both": "node server.js & node private-server.js"
   },
   "keywords": [
     "pixel-art",

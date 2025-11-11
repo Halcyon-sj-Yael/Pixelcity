@@ -10,6 +10,7 @@ A collaborative pixel art building game where players work together to create pi
 - 💎 **Resource Management**: Each player starts with 100 blocks - use them wisely!
 - 🎮 **Modern UI**: Beautiful, responsive design with smooth animations
 - 🔄 **Live Updates**: See other players' blocks appear in real-time
+- 🔒 **Private Server**: Password-protected private server option for exclusive sessions
 
 ## Getting Started
 
@@ -37,6 +38,37 @@ http://localhost:8080
 
 4. Open multiple browser windows/tabs to see real-time collaboration!
 
+### Private Server
+
+You can also run a password-protected private server for exclusive sessions:
+
+1. Start the private server:
+```bash
+npm run private
+```
+
+2. Open your browser and navigate to:
+```
+http://localhost:8081/private
+```
+
+3. Enter the password when prompted (default: `pixelcity2024`)
+
+4. You can customize the password by setting the `PRIVATE_PASSWORD` environment variable:
+```bash
+PRIVATE_PASSWORD=yourpassword npm run private
+```
+
+### Running Both Servers
+
+To run both the public and private servers simultaneously:
+```bash
+npm run both
+```
+
+- Public server: `http://localhost:8080`
+- Private server: `http://localhost:8081/private`
+
 ## How to Play
 
 1. **Select a Color**: Click on any color in the palette
@@ -49,12 +81,14 @@ http://localhost:8080
 
 ```
 Pixel City/
-├── index.html      # Main HTML file
-├── style.css       # Styling and UI design
-├── app.js          # Client-side game logic
-├── server.js       # WebSocket server
-├── package.json    # Dependencies and scripts
-└── README.md       # This file
+├── index.html          # Main HTML file (public server)
+├── private.html         # Private server HTML file
+├── style.css            # Styling and UI design
+├── app.js               # Client-side game logic
+├── server.js            # Public WebSocket server
+├── private-server.js    # Private WebSocket server (password protected)
+├── package.json         # Dependencies and scripts
+└── README.md            # This file
 ```
 
 ## Technical Details
