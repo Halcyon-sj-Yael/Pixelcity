@@ -68,6 +68,168 @@
             margin-top: 10px;
             font-size: 14px;
         }
+        .connection-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10001;
+            justify-content: center;
+            align-items: center;
+        }
+        .connection-modal.active {
+            display: flex;
+        }
+        .connection-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        .connection-box h2 {
+            color: white;
+            margin-bottom: 1rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .connection-box p {
+            color: white;
+            margin-bottom: 1rem;
+            font-size: 14px;
+        }
+        .connection-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .connection-box button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .connection-box button:hover {
+            transform: scale(1.05);
+        }
+        .connection-box .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .connection-error {
+            color: #ffeb3b;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .host-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10002;
+            justify-content: center;
+            align-items: center;
+        }
+        .host-modal.active {
+            display: flex;
+        }
+        .host-box {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .host-box h2 {
+            color: white;
+            margin-bottom: 1rem;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .host-box p, .host-box li {
+            color: white;
+            margin-bottom: 0.5rem;
+            font-size: 14px;
+        }
+        .host-box code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Roboto Mono', monospace;
+            color: #fff;
+        }
+        .host-box .ip-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        .host-box .ip-display strong {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .host-box .copy-btn {
+            background: white;
+            color: #28a745;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .host-box .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        .host-box button.close-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .host-box button.close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .host-box ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
         header h1::after {
             content: " 🔒 Private";
             font-size: 0.6em;
@@ -102,7 +264,12 @@
                 </div>
 
                 <div class="panel">
-                    <h2>Players Online</h2>
+                    <h2>Your Username</h2>
+                    <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                        <input type="text" id="usernameDisplay" placeholder="Enter your name" maxlength="20" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                        <button id="updateUsernameBtn" class="btn btn-secondary" style="padding: 8px 15px; font-size: 12px;">Update</button>
+                    </div>
+                    <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: #666;">Players Online</h3>
                     <div class="players-list" id="playersList">
                         <div class="player-item">You</div>
                     </div>
@@ -139,6 +306,8 @@
                     <div class="grid-overlay" id="gridOverlay"></div>
                 </div>
                 <div class="controls">
+                    <button id="hostServerBtn" class="btn btn-success">Host Server</button>
+                    <button id="connectBtn" class="btn btn-info">Change Server</button>
                     <button id="eraseModeBtn" class="btn btn-warning">Erase Mode</button>
                     <button id="undoBtn" class="btn btn-secondary">Undo Last</button>
                     <button id="clearBtn" class="btn btn-secondary">Clear Selection</button>
@@ -152,15 +321,81 @@
         </div>
     </div>
 
+    <!-- Host Server Modal -->
+    <div class="host-modal" id="hostModal">
+        <div class="host-box">
+            <h2>🖥️ Host a Private Server</h2>
+            <p>Follow these steps to host your own Pixel City private server:</p>
+            
+            <div style="background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong style="display: block; margin-bottom: 10px; font-size: 16px;">Step 1: Open Terminal/Command Prompt</strong>
+                <p>Navigate to the Pixel City folder in your terminal.</p>
+            </div>
+            
+            <div style="background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong style="display: block; margin-bottom: 10px; font-size: 16px;">Step 2: Start the Private Server</strong>
+                <p>Run this command:</p>
+                <code>npm run private</code>
+                <p style="margin-top: 10px;">Or with a custom password:</p>
+                <code>PRIVATE_PASSWORD=yourpassword npm run private</code>
+            </div>
+            
+            <div style="background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong style="display: block; margin-bottom: 10px; font-size: 16px;">Step 3: Find Your IP Address</strong>
+                <p>When the server starts, it will display your IP address in the terminal. Look for:</p>
+                <code>🌐 Network access (for friends): http://192.168.x.x:8081/private</code>
+            </div>
+            
+            <div class="ip-display" id="ipDisplay">
+                <strong>Your IP Address (if server is running):</strong>
+                <div id="ipAddress" style="font-size: 20px; font-weight: bold; margin: 10px 0;">Detecting...</div>
+                <button class="copy-btn" id="copyIpBtn">Copy IP Address</button>
+            </div>
+            
+            <div style="background: rgba(0, 0, 0, 0.2); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong style="display: block; margin-bottom: 10px; font-size: 16px;">Step 4: Share with Friends</strong>
+                <p>Share your IP address and password (default: <code>pixelcity2024</code>) with friends so they can connect.</p>
+            </div>
+            
+            <div style="background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <strong style="display: block; margin-bottom: 10px;">💡 Tips:</strong>
+                <ul>
+                    <li>Make sure your firewall allows connections on port 8081</li>
+                    <li>For local network play, all players must be on the same Wi-Fi</li>
+                    <li>You can connect to your own server using "localhost"</li>
+                    <li>Default password is <code>pixelcity2024</code> unless you set PRIVATE_PASSWORD</li>
+                </ul>
+            </div>
+            
+            <button class="close-btn" id="closeHostBtn">Close</button>
+        </div>
+    </div>
+
     <!-- Authentication Modal -->
     <div class="auth-modal active" id="authModal">
         <div class="auth-box">
             <h2>🔒 Private Server Access</h2>
-            <p style="color: white; margin-bottom: 1rem;">Enter password to join</p>
+            <p style="color: white; margin-bottom: 1rem;">Enter a server name and password to join</p>
+            <input type="text" id="serverNameInput" placeholder="Server name (e.g., My Private Server)" maxlength="30" value="">
+            <input type="text" id="serverAddressInput" placeholder="Server IP (optional - leave blank for localhost)" value="localhost">
             <input type="password" id="passwordInput" placeholder="Enter password..." autofocus>
             <input type="text" id="playerNameInput" placeholder="Your name (optional)" maxlength="20">
             <button id="authSubmitBtn">Join Private Server</button>
             <div class="auth-error" id="authError"></div>
+        </div>
+    </div>
+
+    <!-- Connection Modal (for changing server) -->
+    <div class="connection-modal" id="connectionModal">
+        <div class="connection-box">
+            <h2>🌐 Change Server</h2>
+            <p>Enter a new server IP address to connect to a different private server.</p>
+            <input type="text" id="connectionServerInput" placeholder="e.g., 192.168.1.100 or localhost" value="localhost">
+            <div style="display: flex; gap: 10px;">
+                <button id="connectionSubmitBtn" style="flex: 1;">Connect</button>
+                <button id="connectionCancelBtn" class="btn-secondary" style="flex: 1;">Cancel</button>
+            </div>
+            <div class="connection-error" id="connectionError"></div>
         </div>
     </div>
 
@@ -173,6 +408,13 @@
             WS_URL: 'ws://localhost:8081' // Private server port
         };
         
+        // Check URL parameters for server address
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverParam = urlParams.get('server');
+        if (serverParam) {
+            CONFIG.WS_URL = `ws://${serverParam}:8081`;
+        }
+        
         // Authentication state
         let authPassword = '';
         let authPlayerName = '';
@@ -183,10 +425,147 @@
     <script>
         // Authentication handling for private server
         const authModal = document.getElementById('authModal');
+        const serverNameInput = document.getElementById('serverNameInput');
+        const serverAddressInput = document.getElementById('serverAddressInput');
         const passwordInput = document.getElementById('passwordInput');
         const playerNameInput = document.getElementById('playerNameInput');
         const authSubmitBtn = document.getElementById('authSubmitBtn');
         const authError = document.getElementById('authError');
+        
+        // Store server name in gameState
+        if (!gameState.serverName) {
+            gameState.serverName = 'Private Server';
+        }
+        
+        // Username handling
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const updateUsernameBtn = document.getElementById('updateUsernameBtn');
+        
+        // Set initial username from gameState
+        if (usernameDisplay) {
+            usernameDisplay.value = gameState.playerName;
+        }
+        
+        // Update username
+        if (updateUsernameBtn) {
+            updateUsernameBtn.addEventListener('click', () => {
+                const newName = usernameDisplay.value.trim();
+                if (newName) {
+                    gameState.playerName = newName;
+                    // Send username update to server if connected
+                    if (gameState.ws && gameState.connected && isAuthenticated) {
+                        gameState.ws.send(JSON.stringify({
+                            type: 'updateUsername',
+                            playerId: gameState.playerId,
+                            playerName: newName
+                        }));
+                    }
+                }
+            });
+            
+            if (usernameDisplay) {
+                usernameDisplay.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        updateUsernameBtn.click();
+                    }
+                });
+            }
+        }
+        
+        // Host server modal handling
+        const hostModal = document.getElementById('hostModal');
+        const hostBtn = document.getElementById('hostServerBtn');
+        const closeHostBtn = document.getElementById('closeHostBtn');
+        const ipAddress = document.getElementById('ipAddress');
+        const copyIpBtn = document.getElementById('copyIpBtn');
+        
+        // Try to detect local IP address
+        async function detectLocalIP() {
+            try {
+                const pc = new RTCPeerConnection({iceServers: []});
+                pc.createDataChannel('');
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                
+                return new Promise((resolve) => {
+                    pc.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            const candidate = event.candidate.candidate;
+                            const match = candidate.match(/([0-9]{1,3}\.){3}[0-9]{1,3}/);
+                            if (match && !match[0].startsWith('127.')) {
+                                pc.close();
+                                resolve(match[0]);
+                            }
+                        }
+                    };
+                    setTimeout(() => {
+                        pc.close();
+                        resolve('localhost');
+                    }, 1000);
+                });
+            } catch (error) {
+                return 'localhost';
+            }
+        }
+        
+        // Open host modal
+        if (hostBtn) {
+            hostBtn.addEventListener('click', async () => {
+                hostModal.classList.add('active');
+                ipAddress.textContent = 'Detecting...';
+                
+                const detectedIP = await detectLocalIP();
+                if (detectedIP && detectedIP !== 'localhost') {
+                    ipAddress.textContent = `${detectedIP}:8081`;
+                } else {
+                    ipAddress.textContent = 'localhost:8081 (or check terminal)';
+                }
+            });
+        }
+        
+        // Close host modal
+        if (closeHostBtn) {
+            closeHostBtn.addEventListener('click', () => {
+                hostModal.classList.remove('active');
+            });
+        }
+        
+        // Copy IP address
+        if (copyIpBtn) {
+            copyIpBtn.addEventListener('click', () => {
+                const ipText = ipAddress.textContent;
+                navigator.clipboard.writeText(ipText).then(() => {
+                    copyIpBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyIpBtn.textContent = 'Copy IP Address';
+                    }, 2000);
+                }).catch(() => {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = ipText;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    copyIpBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyIpBtn.textContent = 'Copy IP Address';
+                    }, 2000);
+                });
+            });
+        }
+        
+        // Connection modal handling
+        const connectionModal = document.getElementById('connectionModal');
+        const connectionServerInput = document.getElementById('connectionServerInput');
+        const connectionSubmitBtn = document.getElementById('connectionSubmitBtn');
+        const connectionCancelBtn = document.getElementById('connectionCancelBtn');
+        const connectionError = document.getElementById('connectionError');
+        const connectBtn = document.getElementById('connectBtn');
+        
+        // Set initial server address if from URL param
+        if (serverParam) {
+            serverAddressInput.value = serverParam;
+        }
 
         // Store original connectWebSocket
         const originalConnectWebSocket = window.connectWebSocket;
@@ -196,6 +575,18 @@
             // Prevent multiple connection attempts
             if (gameState.isConnecting || gameState.connected) {
                 return;
+            }
+            
+            // Get server name (optional, defaults to "Private Server")
+            const serverName = serverNameInput ? serverNameInput.value.trim() : 'Private Server';
+            gameState.serverName = serverName || 'Private Server';
+            
+            // Get server address from input or use default
+            const serverAddress = serverAddressInput ? serverAddressInput.value.trim() : 'localhost';
+            if (serverAddress) {
+                CONFIG.WS_URL = `ws://${serverAddress}:8081`;
+            } else {
+                CONFIG.WS_URL = 'ws://localhost:8081';
             }
             
             authPassword = passwordInput.value.trim();
@@ -256,9 +647,14 @@
                             clearTimeout(connectionTimeout);
                             isAuthenticated = true;
                             authModal.classList.remove('active');
-                            updateConnectionStatus('online', 'Private Server');
+                            updateConnectionStatus('online', `Connected to ${gameState.serverName || 'Private Server'}`);
                             gameState.playerName = authPlayerName;
                             gameState.reconnectAttempts = 0;
+                            
+                            // Update username display
+                            if (usernameDisplay) {
+                                usernameDisplay.value = authPlayerName;
+                            }
                             
                             // Send join message after successful authentication
                             ws.send(JSON.stringify({
@@ -326,6 +722,52 @@
         passwordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 connectWithAuth();
+            }
+        });
+        
+        // Connection modal handlers
+        connectBtn.addEventListener('click', () => {
+            connectionModal.classList.add('active');
+            const currentServer = CONFIG.WS_URL.replace('ws://', '').replace(':8081', '');
+            connectionServerInput.value = currentServer;
+            connectionServerInput.focus();
+        });
+        
+        connectionCancelBtn.addEventListener('click', () => {
+            connectionModal.classList.remove('active');
+            connectionError.textContent = '';
+        });
+        
+        connectionSubmitBtn.addEventListener('click', () => {
+            const address = connectionServerInput.value.trim() || 'localhost';
+            
+            // Update WebSocket URL
+            CONFIG.WS_URL = `ws://${address}:8081`;
+            connectionError.textContent = '';
+            connectionModal.classList.remove('active');
+            
+            // Disconnect and reconnect
+            if (gameState.ws) {
+                gameState.ws.close();
+                gameState.connected = false;
+                gameState.isConnecting = false;
+                isAuthenticated = false;
+                gameState.reconnectAttempts = 0;
+            }
+            
+            // Show auth modal again
+            authModal.classList.add('active');
+            serverAddressInput.value = address;
+            if (serverNameInput) {
+                serverNameInput.value = '';
+            }
+            passwordInput.value = '';
+            passwordInput.focus();
+        });
+        
+        connectionServerInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                connectionSubmitBtn.click();
             }
         });
     </script>

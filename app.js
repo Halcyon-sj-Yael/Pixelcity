@@ -19,6 +19,7 @@ const gameState = {
     maxReconnectAttempts: 3,
     isConnecting: false,
     playerName: 'Player' + Math.floor(Math.random() * 1000),
+    serverName: 'Local Server', // Server name for display
     chatMessages: [],
     eraseMode: false,
     history: [] // Track placed blocks for undo
@@ -88,12 +89,18 @@ function init() {
     setupEventListeners();
     updateUI();
     
-    // WebSocket connection is disabled by default to avoid errors
-    // To enable multiplayer, uncomment the line below and start the server with: npm start
-    // setTimeout(() => { connectWebSocket(); }, 1000);
+    // Auto-connect to localhost if no server parameter in URL
+    // Users can use the "Connect to Server" button to connect to a different server
+    const urlParams = new URLSearchParams(window.location.search);
+    const serverParam = urlParams.get('server');
     
-    // Set status to local mode
-    updateConnectionStatus('offline', 'Local Mode');
+    if (!serverParam) {
+        // Auto-connect to localhost for local play
+        setTimeout(() => { connectWebSocket(); }, 1000);
+    } else {
+        // Server specified in URL, will be handled by connection dialog
+        updateConnectionStatus('offline', 'Click "Connect to Server" to join');
+    }
 }
 
 // Setup Canvas
@@ -725,12 +732,13 @@ function connectWebSocket() {
             gameState.isConnecting = false;
             gameState.reconnectAttempts = 0; // Reset on successful connection
             gameState.playerId = Math.random().toString(36).substr(2, 9);
-            updateConnectionStatus('online', 'Connected');
+            updateConnectionStatus('online', `Connected to ${gameState.serverName || 'Server'}`);
             
-            // Send join message
+            // Send join message with username
             ws.send(JSON.stringify({
                 type: 'join',
-                playerId: gameState.playerId
+                playerId: gameState.playerId,
+                playerName: gameState.playerName
             }));
         };
         
@@ -828,12 +836,24 @@ function updatePlayersList(players) {
     const playersList = document.getElementById('playersList');
     playersList.innerHTML = '';
     
-    players.forEach(player => {
-        const playerItem = document.createElement('div');
-        playerItem.className = 'player-item';
-        playerItem.textContent = player === gameState.playerId ? 'You' : `Player ${player.substr(0, 6)}`;
-        playersList.appendChild(playerItem);
-    });
+    // Handle both old format (array of IDs) and new format (array of objects)
+    if (players && players.length > 0) {
+        players.forEach(player => {
+            const playerItem = document.createElement('div');
+            playerItem.className = 'player-item';
+            
+            // Check if new format (object with playerId and playerName)
+            if (typeof player === 'object' && player.playerId) {
+                const isYou = player.playerId === gameState.playerId;
+                playerItem.textContent = isYou ? `You (${player.playerName || 'Unknown'})` : player.playerName || `Player ${player.playerId.substr(0, 6)}`;
+            } else {
+                // Old format (just player ID string)
+                playerItem.textContent = player === gameState.playerId ? 'You' : `Player ${player.substr(0, 6)}`;
+            }
+            
+            playersList.appendChild(playerItem);
+        });
+    }
 }
 
 // Initialize when page loads

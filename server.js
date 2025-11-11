@@ -2,14 +2,29 @@ const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // Server Configuration
 const PORT = 8080;
 const GRID_SIZE = 50;
 
+// Get local IP address
+function getLocalIPAddress() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip internal (loopback) and non-IPv4 addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return 'localhost';
+}
+
 // Game State (shared across all clients)
 let gridState = [];
-let players = new Set();
+let players = new Map(); // Map of playerId -> { name, ... }
 
 // Initialize empty grid
 function initializeGrid() {
@@ -81,10 +96,14 @@ wss.on('connection', (ws) => {
         grid: gridState
     }));
 
-    // Send current players list
+    // Send current players list with usernames
+    const playersList = Array.from(players.entries()).map(([id, info]) => ({
+        playerId: id,
+        playerName: info.name || `Player${id.substr(0, 6)}`
+    }));
     ws.send(JSON.stringify({
         type: 'playerJoined',
-        players: Array.from(players)
+        players: playersList
     }));
 
     ws.on('message', (message) => {
@@ -93,14 +112,35 @@ wss.on('connection', (ws) => {
 
             switch (data.type) {
                 case 'join':
-                    players.add(data.playerId);
-                    console.log(`Player ${data.playerId} joined. Total players: ${players.size}`);
+                    players.set(data.playerId, { name: data.playerName || `Player${data.playerId.substr(0, 6)}` });
+                    console.log(`Player ${data.playerId} (${data.playerName || 'Unknown'}) joined. Total players: ${players.size}`);
                     
                     // Broadcast updated player list to all clients
+                    const playersList = Array.from(players.entries()).map(([id, info]) => ({
+                        playerId: id,
+                        playerName: info.name || `Player${id.substr(0, 6)}`
+                    }));
                     broadcast({
                         type: 'playerJoined',
-                        players: Array.from(players)
+                        players: playersList
                     }, ws);
+                    break;
+                
+                case 'updateUsername':
+                    if (players.has(data.playerId)) {
+                        players.set(data.playerId, { name: data.playerName || `Player${data.playerId.substr(0, 6)}` });
+                        console.log(`Player ${data.playerId} updated username to: ${data.playerName}`);
+                        
+                        // Broadcast updated player list
+                        const updatedPlayersList = Array.from(players.entries()).map(([id, info]) => ({
+                            playerId: id,
+                            playerName: info.name || `Player${id.substr(0, 6)}`
+                        }));
+                        broadcast({
+                            type: 'playerJoined',
+                            players: updatedPlayersList
+                        }, null);
+                    }
                     break;
 
                 case 'placeBlock':
@@ -153,11 +193,15 @@ wss.on('connection', (ws) => {
                     break;
 
                 case 'chatMessage':
+                    // Get player name from stored data or use provided name
+                    const playerInfo = players.get(data.playerId);
+                    const chatPlayerName = playerInfo ? playerInfo.name : (data.playerName || 'Player');
+                    
                     // Broadcast chat message to all other clients (sender already sees it locally)
                     broadcast({
                         type: 'chatMessage',
                         playerId: data.playerId,
-                        playerName: data.playerName || 'Player',
+                        playerName: chatPlayerName,
                         message: data.message
                     }, ws);
                     break;
@@ -172,8 +216,9 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         console.log('Client disconnected');
-        // Note: In a production app, you'd track which playerId belongs to which connection
-        // and remove that specific player. For simplicity, we'll keep all players in the list.
+        // Remove player from list (find by connection - in production, track ws -> playerId mapping)
+        // For now, we'll keep players until they reconnect with same ID
+        // In a real implementation, you'd track ws -> playerId mapping
     });
 
     ws.on('error', (error) => {
@@ -193,9 +238,20 @@ function broadcast(message, sender) {
 }
 
 // Start server
-server.listen(PORT, () => {
-    console.log(`🚀 Pixel City Server running on http://localhost:${PORT}`);
+const HOST = '0.0.0.0'; // Listen on all network interfaces
+const localIP = getLocalIPAddress();
+
+server.listen(PORT, HOST, () => {
+    console.log(`🚀 Pixel City Server running!`);
     console.log(`📡 WebSocket server ready for connections`);
-    console.log(`🎮 Open http://localhost:${PORT} in your browser to play!`);
+    console.log(``);
+    console.log(`📍 Local access:`);
+    console.log(`   http://localhost:${PORT}`);
+    console.log(``);
+    console.log(`🌐 Network access (for friends):`);
+    console.log(`   http://${localIP}:${PORT}`);
+    console.log(``);
+    console.log(`💡 Share this IP address with your friends: ${localIP}:${PORT}`);
+    console.log(`   They can connect by visiting: http://${localIP}:${PORT}`);
 });
 

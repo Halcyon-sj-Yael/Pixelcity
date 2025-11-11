@@ -2,11 +2,26 @@ const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 // Private Server Configuration
 const PORT = 8081;
 const GRID_SIZE = 50;
 const PRIVATE_PASSWORD = process.env.PRIVATE_PASSWORD || 'pixelcity2024'; // Default password, can be set via environment variable
+
+// Get local IP address
+function getLocalIPAddress() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            // Skip internal (loopback) and non-IPv4 addresses
+            if (iface.family === 'IPv4' && !iface.internal) {
+                return iface.address;
+            }
+        }
+    }
+    return 'localhost';
+}
 
 // Game State (shared across all clients)
 let gridState = [];
@@ -131,16 +146,20 @@ wss.on('connection', (ws, req) => {
                         grid: gridState
                     }));
 
-                    // Send current players list
+                    // Send current players list with usernames
+                    const playersList = Array.from(players.entries()).map(([id, info]) => ({
+                        playerId: id,
+                        playerName: info.name || `Player${id.substr(0, 6)}`
+                    }));
                     ws.send(JSON.stringify({
                         type: 'playerJoined',
-                        players: Array.from(players.keys())
+                        players: playersList
                     }));
 
                     // Broadcast new player to all authenticated clients
                     broadcast({
                         type: 'playerJoined',
-                        players: Array.from(players.keys())
+                        players: playersList
                     }, ws);
 
                     console.log(`Player ${clientId} authenticated. Total authenticated players: ${authenticatedClients.size}`);
@@ -172,13 +191,36 @@ wss.on('connection', (ws, req) => {
             switch (data.type) {
                 case 'join':
                     players.set(clientId, { ws, name: data.playerName || `Player${clientId.substr(0, 6)}`, authenticated: true });
-                    console.log(`Player ${clientId} joined. Total players: ${players.size}`);
+                    console.log(`Player ${clientId} (${data.playerName || 'Unknown'}) joined. Total players: ${players.size}`);
                     
                     // Broadcast updated player list to all clients
+                    const playersList = Array.from(players.entries()).map(([id, info]) => ({
+                        playerId: id,
+                        playerName: info.name || `Player${id.substr(0, 6)}`
+                    }));
                     broadcast({
                         type: 'playerJoined',
-                        players: Array.from(players.keys())
+                        players: playersList
                     }, ws);
+                    break;
+                
+                case 'updateUsername':
+                    if (players.has(clientId)) {
+                        const playerInfo = players.get(clientId);
+                        playerInfo.name = data.playerName || `Player${clientId.substr(0, 6)}`;
+                        players.set(clientId, playerInfo);
+                        console.log(`Player ${clientId} updated username to: ${data.playerName}`);
+                        
+                        // Broadcast updated player list
+                        const updatedPlayersList = Array.from(players.entries()).map(([id, info]) => ({
+                            playerId: id,
+                            playerName: info.name || `Player${id.substr(0, 6)}`
+                        }));
+                        broadcast({
+                            type: 'playerJoined',
+                            players: updatedPlayersList
+                        }, null);
+                    }
                     break;
 
                 case 'placeBlock':
@@ -233,10 +275,11 @@ wss.on('connection', (ws, req) => {
                 case 'chatMessage':
                     // Broadcast chat message to all other authenticated clients
                     const player = players.get(clientId);
+                    const chatPlayerName = player ? player.name : (data.playerName || 'Player');
                     broadcast({
                         type: 'chatMessage',
                         playerId: clientId,
-                        playerName: player ? player.name : 'Player',
+                        playerName: chatPlayerName,
                         message: data.message
                     }, ws);
                     break;
@@ -278,11 +321,22 @@ function broadcast(message, sender) {
 }
 
 // Start server
-server.listen(PORT, () => {
-    console.log(`🔒 Private Pixel City Server running on http://localhost:${PORT}`);
+const HOST = '0.0.0.0'; // Listen on all network interfaces
+const localIP = getLocalIPAddress();
+
+server.listen(PORT, HOST, () => {
+    console.log(`🔒 Private Pixel City Server running!`);
     console.log(`📡 WebSocket server ready for authenticated connections`);
     console.log(`🔑 Default password: ${PRIVATE_PASSWORD}`);
     console.log(`💡 Set PRIVATE_PASSWORD environment variable to change the password`);
-    console.log(`🎮 Open http://localhost:${PORT}/private in your browser to play!`);
+    console.log(``);
+    console.log(`📍 Local access:`);
+    console.log(`   http://localhost:${PORT}/private`);
+    console.log(``);
+    console.log(`🌐 Network access (for friends):`);
+    console.log(`   http://${localIP}:${PORT}/private`);
+    console.log(``);
+    console.log(`💡 Share this IP address with your friends: ${localIP}:${PORT}`);
+    console.log(`   They can connect by visiting: http://${localIP}:${PORT}/private`);
 });
 

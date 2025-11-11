@@ -11,6 +11,7 @@ A collaborative pixel art building game where players work together to create pi
 - 🎮 **Modern UI**: Beautiful, responsive design with smooth animations
 - 🔄 **Live Updates**: See other players' blocks appear in real-time
 - 🔒 **Private Server**: Password-protected private server option for exclusive sessions
+- 🌐 **Network Hosting**: Host servers for friends to join over local network or internet
 
 ## Getting Started
 
@@ -68,6 +69,71 @@ npm run both
 
 - Public server: `http://localhost:8080`
 - Private server: `http://localhost:8081/private`
+
+## Hosting for Friends (Network Play)
+
+You can host a server and let your friends join from their computers on the same network or over the internet!
+
+### Hosting a Public Server
+
+1. **Start the server:**
+   ```bash
+   npm start
+   ```
+
+2. **Find your IP address:**
+   - The server will automatically display your local IP address when it starts
+   - Look for a message like: `🌐 Network access (for friends): http://192.168.1.100:8080`
+   - Share this IP address with your friends
+
+3. **Friends can join in two ways:**
+   - **Option 1:** Click the "Connect to Server" button and enter your IP address
+   - **Option 2:** Visit `http://YOUR_IP:8080?server=YOUR_IP` in their browser
+
+### Hosting a Private Server
+
+1. **Start the private server:**
+   ```bash
+   npm run private
+   ```
+
+2. **Share the connection info:**
+   - Share your IP address (shown when server starts)
+   - Share the password (default: `pixelcity2024`)
+
+3. **Friends join by:**
+   - Visiting `http://YOUR_IP:8081/private?server=YOUR_IP`
+   - Entering the password when prompted
+   - Or using the "Change Server" button to enter your IP
+
+### Troubleshooting Network Connections
+
+**If friends can't connect:**
+
+1. **Check Firewall:**
+   - Make sure your firewall allows connections on port 8080 (public) or 8081 (private)
+   - On Windows: Allow Node.js through Windows Firewall
+   - On Mac/Linux: Check firewall settings
+
+2. **Same Network:**
+   - For local network play, all players must be on the same Wi-Fi/network
+   - Use the local IP address (usually starts with 192.168.x.x or 10.x.x.x)
+
+3. **Internet Play (Advanced):**
+   - For friends outside your network, you'll need to:
+     - Set up port forwarding on your router (forward port 8080 or 8081)
+     - Share your public IP address (find it at whatismyip.com)
+     - Ensure your router allows incoming connections
+
+4. **Connection Dialog:**
+   - Use the "Connect to Server" button to manually enter any server IP
+   - Try both the IP address and "localhost" if you're the host
+
+### Quick Connection Tips
+
+- **Host:** Use `localhost` in the connection dialog
+- **Friends:** Enter the host's IP address (shown in server console)
+- **URL Parameter:** You can also use `?server=IP_ADDRESS` in the URL for quick connection
 
 ## How to Play
 
