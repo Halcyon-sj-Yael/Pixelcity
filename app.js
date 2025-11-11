@@ -3,7 +3,7 @@ const CONFIG = {
     GRID_SIZE: 50, // 50x50 grid
     CELL_SIZE: 12, // pixels per cell
     INITIAL_BLOCKS: 100, // starting blocks per player
-    WS_URL: 'ws://localhost:8080'
+    WS_URL: 'ws://localhost:8080' // No trailing slash
 };
 
 // Game State
@@ -711,8 +711,56 @@ function connectWebSocket() {
         gameState.isConnecting = true;
         gameState.reconnectAttempts++;
         
-        // Create WebSocket with error suppression
-        const ws = new WebSocket(CONFIG.WS_URL);
+        // Validate and clean WebSocket URL - be extremely aggressive
+        let wsUrl = String(CONFIG.WS_URL || 'ws://localhost:8080').trim();
+        
+        // Remove ALL trailing slashes, spaces, and any path components
+        wsUrl = wsUrl.replace(/\/+$/, ''); // Remove trailing slashes
+        wsUrl = wsUrl.replace(/\s+.*$/, ''); // Remove everything after first space
+        wsUrl = wsUrl.trim();
+        
+        // Extract only the protocol, hostname, and port using regex
+        // Pattern: ws:// or wss:// followed by hostname:port (no path, no trailing slash)
+        const cleanUrlMatch = wsUrl.match(/^(wss?:\/\/)([^\/\s:]+)(?::(\d+))?/);
+        if (!cleanUrlMatch) {
+            console.error('Invalid WebSocket URL format:', wsUrl);
+            updateConnectionStatus('offline', 'Invalid server address');
+            gameState.isConnecting = false;
+            return;
+        }
+        
+        // Reconstruct URL from matched parts - this ensures no trailing slash
+        const protocol = cleanUrlMatch[1]; // ws:// or wss://
+        const hostname = cleanUrlMatch[2]; // hostname or IP
+        const port = cleanUrlMatch[3] || (protocol === 'wss://' ? '443' : '8080'); // port or default
+        
+        // Build clean URL: protocol + hostname + port (NO trailing slash, NO path)
+        wsUrl = `${protocol}${hostname}:${port}`;
+        
+        // Final validation - URL should be exactly: ws://hostname:port or wss://hostname:port
+        // NO trailing slash, NO path, NO extra characters
+        if (!/^wss?:\/\/[^\/\s]+:\d+$/.test(wsUrl)) {
+            console.error('WebSocket URL format invalid after cleaning:', wsUrl);
+            updateConnectionStatus('offline', 'Invalid server address format');
+            gameState.isConnecting = false;
+            return;
+        }
+        
+        // Log the final URL for debugging
+        console.log('Connecting to WebSocket:', wsUrl);
+        console.log('URL verification - Last 5 chars:', wsUrl.slice(-5), 'Has trailing slash:', wsUrl.endsWith('/'));
+        
+        // Create WebSocket - the URL is now guaranteed to be clean
+        let ws;
+        try {
+            ws = new WebSocket(wsUrl);
+        } catch (error) {
+            console.error('Failed to create WebSocket:', error);
+            updateConnectionStatus('offline', 'Connection failed');
+            gameState.isConnecting = false;
+            return;
+        }
+        
         gameState.ws = ws;
         
         // Set a timeout to give up quickly if connection fails
@@ -751,10 +799,12 @@ function connectWebSocket() {
             }
         };
         
-        ws.onerror = () => {
-            // Silently handle errors - don't log to console
+        ws.onerror = (error) => {
             clearTimeout(connectionTimeout);
             gameState.isConnecting = false;
+            // Check if server is running
+            updateConnectionStatus('offline', 'Server not running - Start server with: npm start');
+            console.log('WebSocket connection error. Make sure the server is running with: npm start');
         };
         
         ws.onclose = (event) => {
@@ -762,8 +812,12 @@ function connectWebSocket() {
             gameState.connected = false;
             gameState.isConnecting = false;
             
-            // Don't try to reconnect - just stay in local mode
-            updateConnectionStatus('offline', 'Local Mode');
+            // Provide helpful message if connection was never established
+            if (!gameState.connected && gameState.reconnectAttempts >= gameState.maxReconnectAttempts) {
+                updateConnectionStatus('offline', 'Server not running - Click "Host Server" for instructions');
+            } else {
+                updateConnectionStatus('offline', 'Local Mode');
+            }
         };
     } catch (error) {
         // Silently fail - local mode is fine

@@ -412,7 +412,16 @@
         const urlParams = new URLSearchParams(window.location.search);
         const serverParam = urlParams.get('server');
         if (serverParam) {
-            CONFIG.WS_URL = `ws://${serverParam}:8081`;
+            // Clean the server parameter
+            let cleanParam = serverParam.trim();
+            cleanParam = cleanParam.replace(/:\d+$/, ''); // Remove trailing port
+            cleanParam = cleanParam.replace(/\s+.*$/, ''); // Remove any trailing text
+            cleanParam = cleanParam.replace(/^ws:\/\//, ''); // Remove ws:// if present
+            cleanParam = cleanParam.replace(/\/+$/, ''); // Remove trailing slashes
+            
+            if (cleanParam) {
+                CONFIG.WS_URL = `ws://${cleanParam}:8081`.replace(/\/+$/, '');
+            }
         }
         
         // Authentication state
@@ -582,12 +591,20 @@
             gameState.serverName = serverName || 'Private Server';
             
             // Get server address from input or use default
-            const serverAddress = serverAddressInput ? serverAddressInput.value.trim() : 'localhost';
-            if (serverAddress) {
-                CONFIG.WS_URL = `ws://${serverAddress}:8081`;
-            } else {
-                CONFIG.WS_URL = 'ws://localhost:8081';
+            let serverAddress = serverAddressInput ? serverAddressInput.value.trim() : 'localhost';
+            
+            // Clean the address - remove any port numbers or extra text
+            serverAddress = serverAddress.replace(/:\d+$/, ''); // Remove trailing port
+            serverAddress = serverAddress.replace(/\s+.*$/, ''); // Remove any trailing text
+            serverAddress = serverAddress.replace(/^ws:\/\//, ''); // Remove ws:// if present
+            serverAddress = serverAddress.replace(/^wss:\/\//, ''); // Remove wss:// if present
+            serverAddress = serverAddress.replace(/\/+$/, ''); // Remove trailing slashes
+            
+            if (!serverAddress) {
+                serverAddress = 'localhost';
             }
+            
+            CONFIG.WS_URL = `ws://${serverAddress}:8081`.replace(/\/+$/, '');
             
             authPassword = passwordInput.value.trim();
             authPlayerName = playerNameInput.value.trim() || gameState.playerName;
@@ -739,10 +756,21 @@
         });
         
         connectionSubmitBtn.addEventListener('click', () => {
-            const address = connectionServerInput.value.trim() || 'localhost';
+            let address = connectionServerInput.value.trim() || 'localhost';
             
-            // Update WebSocket URL
-            CONFIG.WS_URL = `ws://${address}:8081`;
+            // Clean the address - remove any port numbers or extra text
+            address = address.replace(/:\d+$/, ''); // Remove trailing port
+            address = address.replace(/\s+.*$/, ''); // Remove any trailing text
+            address = address.replace(/^ws:\/\//, ''); // Remove ws:// if present
+            address = address.replace(/^wss:\/\//, ''); // Remove wss:// if present
+            address = address.replace(/\/+$/, ''); // Remove trailing slashes
+            
+            if (!address) {
+                address = 'localhost';
+            }
+            
+            // Update WebSocket URL (ensure no trailing slash)
+            CONFIG.WS_URL = `ws://${address}:8081`.replace(/\/+$/, '');
             connectionError.textContent = '';
             connectionModal.classList.remove('active');
             

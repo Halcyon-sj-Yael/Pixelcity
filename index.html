@@ -455,8 +455,17 @@
         const urlParams = new URLSearchParams(window.location.search);
         const serverParam = urlParams.get('server');
         if (serverParam) {
-            CONFIG.WS_URL = `ws://${serverParam}:8080`;
-            serverAddressInput.value = serverParam;
+            // Clean the server parameter
+            let cleanParam = serverParam.trim();
+            cleanParam = cleanParam.replace(/:\d+$/, ''); // Remove trailing port
+            cleanParam = cleanParam.replace(/\s+.*$/, ''); // Remove any trailing text
+            cleanParam = cleanParam.replace(/^ws:\/\//, ''); // Remove ws:// if present
+            cleanParam = cleanParam.replace(/\/+$/, ''); // Remove trailing slashes
+            
+            if (cleanParam) {
+                CONFIG.WS_URL = `ws://${cleanParam}:8080`.replace(/\/+$/, '');
+                serverAddressInput.value = cleanParam;
+            }
         }
 
         // Open connection modal
@@ -482,7 +491,18 @@
             gameState.serverName = serverName;
             
             // Get server address (optional, defaults to localhost)
-            const address = serverAddressInput.value.trim() || 'localhost';
+            let address = serverAddressInput.value.trim() || 'localhost';
+            
+            // Clean the address - remove any port numbers or extra text
+            address = address.replace(/:\d+$/, ''); // Remove trailing port
+            address = address.replace(/\s+.*$/, ''); // Remove any trailing text
+            address = address.replace(/^ws:\/\//, ''); // Remove ws:// if present
+            address = address.replace(/^wss:\/\//, ''); // Remove wss:// if present
+            address = address.replace(/\/+$/, ''); // Remove trailing slashes
+            
+            if (!address) {
+                address = 'localhost';
+            }
             
             // Update username if provided
             const username = usernameInput.value.trim();
@@ -491,8 +511,8 @@
                 usernameDisplay.value = username;
             }
 
-            // Update WebSocket URL
-            CONFIG.WS_URL = `ws://${address}:8080`;
+            // Update WebSocket URL with clean address (ensure no trailing slash)
+            CONFIG.WS_URL = `ws://${address}:8080`.replace(/\/+$/, '');
             connectionError.textContent = '';
             connectionModal.classList.remove('active');
             
