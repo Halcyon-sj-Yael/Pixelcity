@@ -89,15 +89,32 @@ function init() {
     setupEventListeners();
     updateUI();
     
-    // Auto-connect to localhost if no server parameter in URL
-    // Users can use the "Connect to Server" button to connect to a different server
+    // Auto-connect logic
     const urlParams = new URLSearchParams(window.location.search);
     const serverParam = urlParams.get('server');
+    const isHTTPS = window.location.protocol === 'https:';
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
     if (!serverParam) {
-        // Auto-connect to localhost for local play
-        updateConnectionStatus('offline', 'Connecting to local server...');
-        setTimeout(() => { connectWebSocket(); }, 500);
+        // If on HTTPS and not localhost, don't auto-connect to localhost (mixed content blocked)
+        if (isHTTPS && !isLocalhost) {
+            // Running on remote HTTPS server - don't auto-connect to localhost
+            updateConnectionStatus('offline', 'Click "Connect to Server" to join');
+            // Set default to use same hostname with appropriate protocol
+            const hostname = window.location.hostname;
+            // Validate hostname is not 'ws' or 'wss'
+            if (hostname && hostname !== 'ws' && hostname !== 'wss') {
+                const wsProtocol = isHTTPS ? 'wss://' : 'ws://';
+                CONFIG.WS_URL = `${wsProtocol}${hostname}:8080`;
+            } else {
+                console.warn('Invalid hostname detected:', hostname, '- using default');
+                CONFIG.WS_URL = isHTTPS ? 'wss://localhost:8080' : 'ws://localhost:8080';
+            }
+        } else {
+            // Local development - auto-connect to localhost
+            updateConnectionStatus('offline', 'Connecting to local server...');
+            setTimeout(() => { connectWebSocket(); }, 500);
+        }
     } else {
         // Server specified in URL, will be handled by connection dialog
         updateConnectionStatus('offline', 'Click "Connect to Server" to join');
@@ -708,12 +725,28 @@ function connectWebSocket() {
         gameState.reconnectAttempts++;
         
         // Get and clean WebSocket URL
-        let wsUrl = String(CONFIG.WS_URL || 'ws://localhost:8080').trim();
+        // Determine default based on current page protocol
+        const isHTTPS = window.location.protocol === 'https:';
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const defaultProtocol = isHTTPS ? 'wss://' : 'ws://';
+        const defaultHost = isLocalhost ? 'localhost' : window.location.hostname;
+        const defaultUrl = `${defaultProtocol}${defaultHost}:8080`;
+        
+        let wsUrl = String(CONFIG.WS_URL || defaultUrl).trim();
         
         // Early validation - if CONFIG.WS_URL is clearly malformed, use default immediately
-        if (wsUrl === 'ws://ws:' || wsUrl === 'ws://wss:' || wsUrl === 'wss://ws:' || wsUrl === 'wss://wss:') {
-            console.error('CONFIG.WS_URL is malformed:', wsUrl, '- using default');
-            wsUrl = 'ws://localhost:8080';
+        // Check for patterns like ws://ws:, ws://wss:, wss://ws:, wss://wss: (with or without trailing colon/port)
+        if (wsUrl.match(/^wss?:\/\/(ws|wss)(:|$)/)) {
+            console.error('CONFIG.WS_URL is malformed (protocol as hostname):', wsUrl, '- using default');
+            wsUrl = defaultUrl;
+        }
+        
+        // If on HTTPS and trying to connect to ws://localhost, block it (mixed content)
+        if (isHTTPS && !isLocalhost && wsUrl.startsWith('ws://localhost')) {
+            console.warn('Blocked: HTTPS page cannot connect to ws://localhost (mixed content). Use "Connect to Server" to specify a server.');
+            updateConnectionStatus('offline', 'Cannot connect to localhost from HTTPS. Use "Connect to Server" to specify a server.');
+            gameState.isConnecting = false;
+            return;
         }
         
         // Remove ALL trailing slashes, paths, and whitespace
@@ -731,25 +764,25 @@ function connectWebSocket() {
         // If URL is just 'ws' or 'wss', it's invalid - use default
         if (wsUrl === 'ws' || wsUrl === 'wss' || wsUrl === 'ws://' || wsUrl === 'wss://') {
             console.warn('Invalid WebSocket URL detected, using default:', wsUrl);
-            wsUrl = 'ws://localhost:8080';
+            wsUrl = defaultUrl;
         }
         
         // Check for malformed URLs like "ws://ws:" or "ws://wss:" (missing port or protocol as hostname)
         if (wsUrl.match(/^wss?:\/\/(ws|wss)(:.*)?$/)) {
             console.warn('Invalid WebSocket URL detected (protocol as hostname), using default:', wsUrl);
-            wsUrl = 'ws://localhost:8080';
+            wsUrl = defaultUrl;
         }
         
         // Check if URL ends with just ':' (missing port) - more comprehensive check
         if (wsUrl.match(/^wss?:\/\/[^:]+:$/)) {
             console.warn('Invalid WebSocket URL detected (missing port), using default:', wsUrl);
-            wsUrl = 'ws://localhost:8080';
+            wsUrl = defaultUrl;
         }
         
         // Check if URL has ':' but no port number after it
         if (wsUrl.match(/^wss?:\/\/[^:]+:[^0-9]/)) {
             console.warn('Invalid WebSocket URL detected (invalid port format), using default:', wsUrl);
-            wsUrl = 'ws://localhost:8080';
+            wsUrl = defaultUrl;
         }
         
         // Ensure it starts with ws:// or wss://
@@ -762,8 +795,8 @@ function connectWebSocket() {
         const urlMatch = wsUrl.match(/^(wss?:\/\/)([^\/:\s]+)(?::(\d+))?$/);
         if (!urlMatch) {
             console.error('Invalid WebSocket URL format:', wsUrl);
-            console.error('Using default: ws://localhost:8080');
-            wsUrl = 'ws://localhost:8080';
+            console.error('Using default:', defaultUrl);
+            wsUrl = defaultUrl;
             // Re-match with default
             const defaultMatch = wsUrl.match(/^(wss?:\/\/)([^\/:\s]+)(?::(\d+))?$/);
             if (!defaultMatch) {
@@ -782,8 +815,8 @@ function connectWebSocket() {
             
             // Validate hostname is not just 'ws' or 'wss'
             if (hostname === 'ws' || hostname === 'wss') {
-                console.error('Invalid hostname detected:', hostname, '- using localhost');
-                wsUrl = `${protocol}localhost:${port}`;
+                console.error('Invalid hostname detected:', hostname, '- using', defaultHost);
+                wsUrl = `${protocol}${defaultHost}:${port}`;
             } else {
                 // Build clean URL - NO trailing slash, NO path
                 wsUrl = `${protocol}${hostname}:${port}`;
@@ -796,8 +829,8 @@ function connectWebSocket() {
         // Validate final URL format
         if (!/^wss?:\/\/[^\/\s]+:\d+$/.test(wsUrl)) {
             console.error('Invalid WebSocket URL after cleaning:', wsUrl);
-            console.error('Falling back to default: ws://localhost:8080');
-            wsUrl = 'ws://localhost:8080';
+            console.error('Falling back to default:', defaultUrl);
+            wsUrl = defaultUrl;
         }
         
         console.log('Connecting to WebSocket:', wsUrl, '(no trailing slash)');
