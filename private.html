@@ -68,74 +68,6 @@
             margin-top: 10px;
             font-size: 14px;
         }
-        .connection-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 10001;
-            justify-content: center;
-            align-items: center;
-        }
-        .connection-modal.active {
-            display: flex;
-        }
-        .connection-box {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            width: 90%;
-            text-align: center;
-        }
-        .connection-box h2 {
-            color: white;
-            margin-bottom: 1rem;
-            font-family: 'Orbitron', sans-serif;
-        }
-        .connection-box p {
-            color: white;
-            margin-bottom: 1rem;
-            font-size: 14px;
-        }
-        .connection-box input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        .connection-box button {
-            width: 100%;
-            padding: 12px;
-            margin: 5px 0;
-            background: white;
-            color: #667eea;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .connection-box button:hover {
-            transform: scale(1.05);
-        }
-        .connection-box .btn-secondary {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-        .connection-error {
-            color: #ffeb3b;
-            margin-top: 10px;
-            font-size: 14px;
-        }
         .btn-info {
             background: #17a2b8;
             color: white;
@@ -307,7 +239,6 @@
                 </div>
                 <div class="controls">
                     <button id="hostServerBtn" class="btn btn-success">Host Server</button>
-                    <button id="connectBtn" class="btn btn-info">Change Server</button>
                     <button id="eraseModeBtn" class="btn btn-warning">Erase Mode</button>
                     <button id="undoBtn" class="btn btn-secondary">Undo Last</button>
                     <button id="clearBtn" class="btn btn-secondary">Clear Selection</button>
@@ -382,20 +313,6 @@
             <input type="text" id="playerNameInput" placeholder="Your name (optional)" maxlength="20">
             <button id="authSubmitBtn">Join Private Server</button>
             <div class="auth-error" id="authError"></div>
-        </div>
-    </div>
-
-    <!-- Connection Modal (for changing server) -->
-    <div class="connection-modal" id="connectionModal">
-        <div class="connection-box">
-            <h2>🌐 Change Server</h2>
-            <p>Enter a new server IP address to connect to a different private server.</p>
-            <input type="text" id="connectionServerInput" placeholder="e.g., 192.168.1.100 or localhost" value="localhost">
-            <div style="display: flex; gap: 10px;">
-                <button id="connectionSubmitBtn" style="flex: 1;">Connect</button>
-                <button id="connectionCancelBtn" class="btn-secondary" style="flex: 1;">Cancel</button>
-            </div>
-            <div class="connection-error" id="connectionError"></div>
         </div>
     </div>
 
@@ -562,14 +479,6 @@
                 });
             });
         }
-        
-        // Connection modal handling
-        const connectionModal = document.getElementById('connectionModal');
-        const connectionServerInput = document.getElementById('connectionServerInput');
-        const connectionSubmitBtn = document.getElementById('connectionSubmitBtn');
-        const connectionCancelBtn = document.getElementById('connectionCancelBtn');
-        const connectionError = document.getElementById('connectionError');
-        const connectBtn = document.getElementById('connectBtn');
         
         // Set initial server address if from URL param
         if (serverParam) {
@@ -739,63 +648,6 @@
         passwordInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 connectWithAuth();
-            }
-        });
-        
-        // Connection modal handlers
-        connectBtn.addEventListener('click', () => {
-            connectionModal.classList.add('active');
-            const currentServer = CONFIG.WS_URL.replace('ws://', '').replace(':8081', '');
-            connectionServerInput.value = currentServer;
-            connectionServerInput.focus();
-        });
-        
-        connectionCancelBtn.addEventListener('click', () => {
-            connectionModal.classList.remove('active');
-            connectionError.textContent = '';
-        });
-        
-        connectionSubmitBtn.addEventListener('click', () => {
-            let address = connectionServerInput.value.trim() || 'localhost';
-            
-            // Clean the address - remove any port numbers or extra text
-            address = address.replace(/:\d+$/, ''); // Remove trailing port
-            address = address.replace(/\s+.*$/, ''); // Remove any trailing text
-            address = address.replace(/^ws:\/\//, ''); // Remove ws:// if present
-            address = address.replace(/^wss:\/\//, ''); // Remove wss:// if present
-            address = address.replace(/\/+$/, ''); // Remove trailing slashes
-            
-            if (!address) {
-                address = 'localhost';
-            }
-            
-            // Update WebSocket URL (ensure no trailing slash)
-            CONFIG.WS_URL = `ws://${address}:8081`.replace(/\/+$/, '');
-            connectionError.textContent = '';
-            connectionModal.classList.remove('active');
-            
-            // Disconnect and reconnect
-            if (gameState.ws) {
-                gameState.ws.close();
-                gameState.connected = false;
-                gameState.isConnecting = false;
-                isAuthenticated = false;
-                gameState.reconnectAttempts = 0;
-            }
-            
-            // Show auth modal again
-            authModal.classList.add('active');
-            serverAddressInput.value = address;
-            if (serverNameInput) {
-                serverNameInput.value = '';
-            }
-            passwordInput.value = '';
-            passwordInput.focus();
-        });
-        
-        connectionServerInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                connectionSubmitBtn.click();
             }
         });
     </script>
