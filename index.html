@@ -181,6 +181,9 @@
                 <button id="connectSubmitBtn" style="flex: 1;">Connect</button>
                 <button id="connectCancelBtn" class="btn-secondary" style="flex: 1;">Cancel</button>
             </div>
+            <button id="connectLocalhostBtn" class="btn-success" style="width: 100%; margin-top: 10px; font-size: 14px;">
+                🏠 Quick Connect to Localhost
+            </button>
             <div class="connection-error" id="connectionError"></div>
             
             <!-- Simple Server Start Option -->
@@ -219,6 +222,7 @@
         const connectBtn = document.getElementById('connectBtn');
         const showServerStartBtn = document.getElementById('showServerStartBtn');
         const serverStartInstructions = document.getElementById('serverStartInstructions');
+        const connectLocalhostBtn = document.getElementById('connectLocalhostBtn');
         
         // Store server name in gameState
         if (!gameState.serverName) {
@@ -301,6 +305,47 @@
             const isVisible = serverStartInstructions.style.display !== 'none';
             serverStartInstructions.style.display = isVisible ? 'none' : 'block';
             showServerStartBtn.textContent = isVisible ? '🖥️ Need to start a server?' : '🖥️ Hide instructions';
+        });
+        
+        // Quick connect to localhost
+        connectLocalhostBtn.addEventListener('click', () => {
+            // Set localhost values
+            serverNameInput.value = 'Local Server';
+            serverAddressInput.value = 'localhost';
+            gameState.serverName = 'Local Server';
+            
+            // Update username if provided
+            const username = usernameInput.value.trim();
+            if (username) {
+                gameState.playerName = username;
+                const usernameDisplay = document.getElementById('usernameDisplay');
+                if (usernameDisplay) {
+                    usernameDisplay.value = username;
+                }
+            }
+            
+            // Set WebSocket URL to localhost
+            CONFIG.WS_URL = 'ws://localhost:8080';
+            connectionError.textContent = '';
+            connectionModal.classList.remove('active');
+            
+            // Update connection status
+            updateConnectionStatus('offline', 'Connecting to Local Server...');
+            
+            // Disconnect existing connection if any
+            if (gameState.ws) {
+                gameState.ws.close();
+                gameState.connected = false;
+                gameState.isConnecting = false;
+            }
+            
+            // Reset reconnect attempts for manual connection
+            gameState.reconnectAttempts = 0;
+            
+            // Connect to localhost
+            setTimeout(() => {
+                connectWebSocket();
+            }, 100);
         });
 
         // Connect to server
