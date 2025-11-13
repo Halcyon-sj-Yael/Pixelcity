@@ -6,7 +6,7 @@ const os = require('os');
 
 // Private Server Configuration
 const PORT = 8081;
-const GRID_SIZE = 50;
+const GRID_SIZE = 100;
 const PRIVATE_PASSWORD = process.env.PRIVATE_PASSWORD || 'pixelcity2024'; // Default password, can be set via environment variable
 
 // Get local IP address

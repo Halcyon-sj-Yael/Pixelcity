@@ -6,7 +6,7 @@ const os = require('os');
 
 // Server Configuration
 const PORT = 8080;
-const GRID_SIZE = 50;
+const GRID_SIZE = 100;
 
 // Get local IP address
 function getLocalIPAddress() {

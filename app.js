@@ -1,6 +1,6 @@
 // Game Configuration
 const CONFIG = {
-    GRID_SIZE: 50, // 50x50 grid
+    GRID_SIZE: 100, // 100x100 grid
     CELL_SIZE: 12, // pixels per cell
     WS_URL: 'ws://localhost:8080' // No trailing slash - will be cleaned in connectWebSocket
 };
@@ -188,7 +188,7 @@ function drawGrid() {
         ctx.stroke();
     }
     
-    // Draw placed blocks
+    // Draw placed blocks - full boxes
     if (gameState.grid && gameState.grid.length > 0) {
         for (let y = 0; y < CONFIG.GRID_SIZE; y++) {
             if (gameState.grid[y]) {
@@ -196,10 +196,10 @@ function drawGrid() {
                     if (gameState.grid[y][x]) {
                         ctx.fillStyle = gameState.grid[y][x];
                         ctx.fillRect(
-                            x * CONFIG.CELL_SIZE + 1,
-                            y * CONFIG.CELL_SIZE + 1,
-                            CONFIG.CELL_SIZE - 2,
-                            CONFIG.CELL_SIZE - 2
+                            x * CONFIG.CELL_SIZE,
+                            y * CONFIG.CELL_SIZE,
+                            CONFIG.CELL_SIZE,
+                            CONFIG.CELL_SIZE
                         );
                     }
                 }
@@ -443,23 +443,13 @@ function placeBlock(x, y, color) {
     const ctx = canvas?.getContext('2d');
     if (!ctx) return;
     
-    // Draw the filled block
+    // Draw the filled block - full box
     ctx.fillStyle = color;
     ctx.fillRect(
-        x * CONFIG.CELL_SIZE + 1,
-        y * CONFIG.CELL_SIZE + 1,
-        CONFIG.CELL_SIZE - 2,
-        CONFIG.CELL_SIZE - 2
-    );
-    
-    // Add subtle border for visual feedback
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-    ctx.lineWidth = 0.5;
-    ctx.strokeRect(
-        x * CONFIG.CELL_SIZE + 1,
-        y * CONFIG.CELL_SIZE + 1,
-        CONFIG.CELL_SIZE - 2,
-        CONFIG.CELL_SIZE - 2
+        x * CONFIG.CELL_SIZE,
+        y * CONFIG.CELL_SIZE,
+        CONFIG.CELL_SIZE,
+        CONFIG.CELL_SIZE
     );
     
     // Send to server if connected
