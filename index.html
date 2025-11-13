@@ -269,12 +269,10 @@
             cleanParam = cleanParam.replace(/^wss$/, ''); // Remove if just 'wss'
             cleanParam = cleanParam.trim();
             
-            // Validate the cleaned parameter is not just 'ws' or 'wss' and is not empty
+            // Validate the cleaned parameter
             if (cleanParam && cleanParam !== 'ws' && cleanParam !== 'wss' && cleanParam.length > 0 && !cleanParam.match(/^ws:/)) {
                 CONFIG.WS_URL = `ws://${cleanParam}:8080`.replace(/\/+$/, '');
                 serverAddressInput.value = cleanParam;
-            } else {
-                console.warn('Invalid server parameter in URL:', serverParam, '- using default');
             }
         }
 
@@ -324,9 +322,8 @@
             address = address.replace(/^wss$/, ''); // Remove if just 'wss'
             address = address.trim();
             
-            // Validate address is not just 'ws' or 'wss' and doesn't start with 'ws:'
+            // Validate address
             if (!address || address === 'ws' || address === 'wss' || address.match(/^ws:/)) {
-                console.warn('Invalid address detected:', serverAddressInput.value, '- using localhost');
                 address = 'localhost';
             }
             
@@ -337,17 +334,16 @@
                 usernameDisplay.value = username;
             }
 
-            // Update WebSocket URL with clean address (ensure no trailing slash)
-            // Validate the address before setting - double check it's valid
+            // Update WebSocket URL with clean address
             if (address && address !== 'ws' && address !== 'wss' && !address.match(/^ws:/) && address.length > 0) {
-                CONFIG.WS_URL = `ws://${address}:8080`.replace(/\/+$/, '');
-                // Final validation of the constructed URL
-                if (CONFIG.WS_URL.match(/^wss?:\/\/(ws|wss)(:|$)/)) {
-                    console.error('Invalid CONFIG.WS_URL constructed:', CONFIG.WS_URL, '- using default');
+                const constructedUrl = `ws://${address}:8080`.replace(/\/+$/, '');
+                // Validate the constructed URL
+                if (!constructedUrl.match(/^wss?:\/\/(ws|wss)(:|$)/)) {
+                    CONFIG.WS_URL = constructedUrl;
+                } else {
                     CONFIG.WS_URL = 'ws://localhost:8080';
                 }
             } else {
-                console.warn('Invalid address, using default localhost');
                 CONFIG.WS_URL = 'ws://localhost:8080';
             }
             connectionError.textContent = '';

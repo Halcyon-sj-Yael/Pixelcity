@@ -102,16 +102,16 @@ function init() {
             updateConnectionStatus('offline', 'Click "Connect to Server" to join');
             // Set default to use same hostname with appropriate protocol
             const hostname = window.location.hostname;
-            // Validate hostname is not 'ws' or 'wss'
+            // Validate hostname and set default URL
             if (hostname && hostname !== 'ws' && hostname !== 'wss') {
                 const wsProtocol = isHTTPS ? 'wss://' : 'ws://';
                 CONFIG.WS_URL = `${wsProtocol}${hostname}:8080`;
             } else {
-                console.warn('Invalid hostname detected:', hostname, '- using default');
                 CONFIG.WS_URL = isHTTPS ? 'wss://localhost:8080' : 'ws://localhost:8080';
             }
         } else {
             // Local development - auto-connect to localhost
+            // Only show connecting message, errors will be handled in connectWebSocket
             updateConnectionStatus('offline', 'Connecting to local server...');
             setTimeout(() => { connectWebSocket(); }, 500);
         }
@@ -149,13 +149,6 @@ function setupCanvas() {
     
     // Draw initial grid
     drawGrid();
-    
-    console.log('Canvas initialized:', {
-        internalSize: `${canvas.width}x${canvas.height}`,
-        displaySize: `${canvas.style.width}x${canvas.style.height}`,
-        gridSize: `${CONFIG.GRID_SIZE}x${CONFIG.GRID_SIZE}`,
-        cellSize: CONFIG.CELL_SIZE
-    });
 }
 
 // Initialize Grid
@@ -306,8 +299,6 @@ function setupEventListeners() {
             }
         });
     }
-    
-    console.log('Event listeners set up');
 }
 
 // Handle Canvas Click
@@ -362,8 +353,6 @@ function handleCanvasClick(e) {
             
             placeBlock(x, y, gameState.selectedColor);
         }
-    } else {
-        console.warn('Click outside grid bounds:', x, y);
     }
 }
 
@@ -387,15 +376,8 @@ function handleCanvasHover(e) {
 
 // Place Block
 function placeBlock(x, y, color) {
-    // Validate coordinates
-    if (x < 0 || x >= CONFIG.GRID_SIZE || y < 0 || y >= CONFIG.GRID_SIZE) {
-        console.warn('Invalid coordinates:', x, y);
-        return;
-    }
-    
-    // Validate color
-    if (!color) {
-        console.error('No color provided for block placement');
+    // Validate coordinates and color
+    if (x < 0 || x >= CONFIG.GRID_SIZE || y < 0 || y >= CONFIG.GRID_SIZE || !color) {
         return;
     }
     
@@ -406,8 +388,7 @@ function placeBlock(x, y, color) {
     
     // Check if cell is already occupied
     if (gameState.grid[y][x] !== null) {
-        console.log('Cell already occupied at:', x, y, 'Current color:', gameState.grid[y][x]);
-        return; // Can't place on occupied cell
+        return;
     }
     
     // Place block in grid
@@ -420,16 +401,8 @@ function placeBlock(x, y, color) {
     
     // Draw the block
     const canvas = document.getElementById('gameCanvas');
-    if (!canvas) {
-        console.error('Canvas not found when placing block');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-        console.error('Could not get canvas context');
-        return;
-    }
+    const ctx = canvas?.getContext('2d');
+    if (!ctx) return;
     
     // Draw the filled block
     ctx.fillStyle = color;
@@ -450,8 +423,6 @@ function placeBlock(x, y, color) {
         CONFIG.CELL_SIZE - 2
     );
     
-    console.log('✓ Block placed successfully at:', x, y, 'Color:', color, 'Remaining:', gameState.blocksRemaining);
-    
     // Send to server if connected
     if (gameState.ws && gameState.connected) {
         gameState.ws.send(JSON.stringify({
@@ -470,7 +441,6 @@ function placeBlock(x, y, color) {
 function removeBlock(x, y) {
     // Validate coordinates
     if (x < 0 || x >= CONFIG.GRID_SIZE || y < 0 || y >= CONFIG.GRID_SIZE) {
-        console.warn('Invalid coordinates:', x, y);
         return;
     }
     
@@ -481,7 +451,6 @@ function removeBlock(x, y) {
     
     // Check if cell is empty
     if (gameState.grid[y][x] === null) {
-        console.log('Cell is already empty at:', x, y);
         return;
     }
     
@@ -498,8 +467,6 @@ function removeBlock(x, y) {
     
     // Redraw the grid to show the removed block
     drawGrid();
-    
-    console.log('✓ Block removed at:', x, y);
     
     // Send to server if connected
     if (gameState.ws && gameState.connected) {
@@ -550,7 +517,6 @@ function undoLast() {
             gameState.totalPlaced--;
             drawGrid();
             updateUI();
-            console.log('✓ Undone: Removed block at', lastAction.x, lastAction.y);
         }
     } else if (lastAction.action === 'remove') {
         // Undo a removal - restore the block
@@ -560,7 +526,6 @@ function undoLast() {
             gameState.totalPlaced++;
             drawGrid();
             updateUI();
-            console.log('✓ Undone: Restored block at', lastAction.x, lastAction.y);
         }
     }
     
@@ -707,6 +672,62 @@ function updateUI() {
     document.getElementById('totalPlaced').textContent = gameState.totalPlaced;
 }
 
+// Clean and validate WebSocket URL
+function cleanWebSocketUrl(url, defaultUrl) {
+    if (!url) return defaultUrl;
+    
+    let cleaned = String(url).trim();
+    
+    // Remove trailing slashes and paths
+    cleaned = cleaned.replace(/\/+$/, '').replace(/\/.*$/, '').trim();
+    
+    // Remove duplicate protocols
+    while (cleaned.match(/^(wss?:\/\/){2,}/)) {
+        cleaned = cleaned.replace(/^(wss?:\/\/)(wss?:\/\/)+/, '$1');
+    }
+    
+    // Check for invalid patterns
+    const invalidPatterns = [
+        /^wss?:\/\/(ws|wss)(:|$)/,  // Protocol as hostname
+        /^wss?:\/\/[^:]+:$/,         // Missing port
+        /^wss?:\/\/[^:]+:[^0-9]/,    // Invalid port format
+        /^(ws|wss|ws:\/\/|wss:\/\/)$/ // Just protocol
+    ];
+    
+    for (const pattern of invalidPatterns) {
+        if (pattern.test(cleaned)) {
+            return defaultUrl;
+        }
+    }
+    
+    // Ensure protocol prefix
+    if (!cleaned.startsWith('ws://') && !cleaned.startsWith('wss://')) {
+        cleaned = 'ws://' + cleaned;
+    }
+    
+    // Extract and validate components
+    const match = cleaned.match(/^(wss?:\/\/)([^\/:\s]+)(?::(\d+))?$/);
+    if (!match) return defaultUrl;
+    
+    const [, protocol, hostname, port] = match;
+    
+    // Validate hostname
+    if (hostname === 'ws' || hostname === 'wss') {
+        const defaultMatch = defaultUrl.match(/^(wss?:\/\/)([^\/:\s]+)(?::(\d+))?$/);
+        if (defaultMatch) {
+            return `${protocol}${defaultMatch[2]}:${port || defaultMatch[3] || '8080'}`;
+        }
+        return defaultUrl;
+    }
+    
+    // Build final URL
+    const finalPort = port || (protocol === 'wss://' ? '443' : '8080');
+    const finalUrl = `${protocol}${hostname}:${finalPort}`;
+    
+    // Final validation
+    return /^wss?:\/\/[^\/\s]+:\d+$/.test(finalUrl) ? finalUrl : defaultUrl;
+}
+
 // WebSocket Connection
 function connectWebSocket() {
     // Prevent multiple connection attempts
@@ -724,117 +745,27 @@ function connectWebSocket() {
         gameState.isConnecting = true;
         gameState.reconnectAttempts++;
         
-        // Get and clean WebSocket URL
-        // Determine default based on current page protocol
+        // Determine default URL based on current page protocol
         const isHTTPS = window.location.protocol === 'https:';
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const defaultProtocol = isHTTPS ? 'wss://' : 'ws://';
         const defaultHost = isLocalhost ? 'localhost' : window.location.hostname;
         const defaultUrl = `${defaultProtocol}${defaultHost}:8080`;
         
-        let wsUrl = String(CONFIG.WS_URL || defaultUrl).trim();
+        // Clean and validate WebSocket URL
+        let wsUrl = cleanWebSocketUrl(CONFIG.WS_URL, defaultUrl);
         
-        // Early validation - if CONFIG.WS_URL is clearly malformed, use default immediately
-        // Check for patterns like ws://ws:, ws://wss:, wss://ws:, wss://wss: (with or without trailing colon/port)
-        if (wsUrl.match(/^wss?:\/\/(ws|wss)(:|$)/)) {
-            console.error('CONFIG.WS_URL is malformed (protocol as hostname):', wsUrl, '- using default');
-            wsUrl = defaultUrl;
-        }
-        
-        // If on HTTPS and trying to connect to ws://localhost, block it (mixed content)
+        // Block mixed content (HTTPS page trying to connect to ws://localhost)
         if (isHTTPS && !isLocalhost && wsUrl.startsWith('ws://localhost')) {
-            console.warn('Blocked: HTTPS page cannot connect to ws://localhost (mixed content). Use "Connect to Server" to specify a server.');
             updateConnectionStatus('offline', 'Cannot connect to localhost from HTTPS. Use "Connect to Server" to specify a server.');
             gameState.isConnecting = false;
             return;
         }
         
-        // Remove ALL trailing slashes, paths, and whitespace
-        wsUrl = wsUrl.replace(/\/+$/, ''); // Remove trailing slashes
-        wsUrl = wsUrl.replace(/\/.*$/, ''); // Remove any path after first slash
-        wsUrl = wsUrl.trim();
-        
-        // Handle edge cases where URL might be malformed
-        // Remove duplicate protocols (e.g., ws://ws://localhost -> ws://localhost)
-        // This regex finds and removes duplicate ws:// or wss:// at the start
-        while (wsUrl.match(/^(wss?:\/\/){2,}/)) {
-            wsUrl = wsUrl.replace(/^(wss?:\/\/)(wss?:\/\/)+/, '$1');
-        }
-        
-        // If URL is just 'ws' or 'wss', it's invalid - use default
-        if (wsUrl === 'ws' || wsUrl === 'wss' || wsUrl === 'ws://' || wsUrl === 'wss://') {
-            console.warn('Invalid WebSocket URL detected, using default:', wsUrl);
-            wsUrl = defaultUrl;
-        }
-        
-        // Check for malformed URLs like "ws://ws:" or "ws://wss:" (missing port or protocol as hostname)
-        if (wsUrl.match(/^wss?:\/\/(ws|wss)(:.*)?$/)) {
-            console.warn('Invalid WebSocket URL detected (protocol as hostname), using default:', wsUrl);
-            wsUrl = defaultUrl;
-        }
-        
-        // Check if URL ends with just ':' (missing port) - more comprehensive check
-        if (wsUrl.match(/^wss?:\/\/[^:]+:$/)) {
-            console.warn('Invalid WebSocket URL detected (missing port), using default:', wsUrl);
-            wsUrl = defaultUrl;
-        }
-        
-        // Check if URL has ':' but no port number after it
-        if (wsUrl.match(/^wss?:\/\/[^:]+:[^0-9]/)) {
-            console.warn('Invalid WebSocket URL detected (invalid port format), using default:', wsUrl);
-            wsUrl = defaultUrl;
-        }
-        
-        // Ensure it starts with ws:// or wss://
-        if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-            wsUrl = 'ws://' + wsUrl;
-        }
-        
-        // Extract hostname and port - be very strict
-        // Pattern: protocol://hostname:port (no path, no trailing slash)
-        const urlMatch = wsUrl.match(/^(wss?:\/\/)([^\/:\s]+)(?::(\d+))?$/);
-        if (!urlMatch) {
-            console.error('Invalid WebSocket URL format:', wsUrl);
-            console.error('Using default:', defaultUrl);
-            wsUrl = defaultUrl;
-            // Re-match with default
-            const defaultMatch = wsUrl.match(/^(wss?:\/\/)([^\/:\s]+)(?::(\d+))?$/);
-            if (!defaultMatch) {
-                updateConnectionStatus('offline', 'Invalid server address');
-                gameState.isConnecting = false;
-                return;
-            }
-            const protocol = defaultMatch[1];
-            const hostname = defaultMatch[2];
-            const port = defaultMatch[3] || '8080';
-            wsUrl = `${protocol}${hostname}:${port}`;
-        } else {
-            const protocol = urlMatch[1];
-            const hostname = urlMatch[2];
-            const port = urlMatch[3] || (protocol === 'wss://' ? '443' : '8080');
-            
-            // Validate hostname is not just 'ws' or 'wss'
-            if (hostname === 'ws' || hostname === 'wss') {
-                console.error('Invalid hostname detected:', hostname, '- using', defaultHost);
-                wsUrl = `${protocol}${defaultHost}:${port}`;
-            } else {
-                // Build clean URL - NO trailing slash, NO path
-                wsUrl = `${protocol}${hostname}:${port}`;
-            }
-        }
-        
-        // Final safety check - ensure no trailing slash
-        wsUrl = wsUrl.replace(/\/+$/, '');
-        
-        // Validate final URL format
-        if (!/^wss?:\/\/[^\/\s]+:\d+$/.test(wsUrl)) {
-            console.error('Invalid WebSocket URL after cleaning:', wsUrl);
-            console.error('Falling back to default:', defaultUrl);
-            wsUrl = defaultUrl;
-        }
-        
-        console.log('Connecting to WebSocket:', wsUrl, '(no trailing slash)');
         updateConnectionStatus('offline', 'Connecting...');
+        
+        // Ensure URL has no trailing slash (final check)
+        wsUrl = wsUrl.replace(/\/+$/, '');
         
         // Create WebSocket connection
         const ws = new WebSocket(wsUrl);
@@ -863,7 +794,7 @@ function connectWebSocket() {
             clearTimeout(connectionTimeout);
             gameState.connected = true;
             gameState.isConnecting = false;
-            gameState.reconnectAttempts = 0; // Reset on successful connection
+            gameState.reconnectAttempts = 0;
             gameState.playerId = Math.random().toString(36).substr(2, 9);
             updateConnectionStatus('online', `Connected to ${gameState.serverName || 'Server'}`);
             
@@ -873,8 +804,6 @@ function connectWebSocket() {
                 playerId: gameState.playerId,
                 playerName: gameState.playerName
             }));
-            
-            console.log('WebSocket connected successfully');
         };
         
         ws.onmessage = (event) => {
@@ -882,34 +811,24 @@ function connectWebSocket() {
                 const message = JSON.parse(event.data);
                 handleWebSocketMessage(message);
             } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
+                // Handle parse errors silently
             }
         };
         
         ws.onerror = (error) => {
             clearTimeout(connectionTimeout);
             gameState.isConnecting = false;
-            console.error('WebSocket connection error:', error);
-            console.log('Attempted URL:', wsUrl);
-            console.log('Make sure the server is running with: npm start');
-            
-            // Don't update status here - let onclose handle it
-            // This prevents showing error before we know if it's a retry
+            // Suppress browser console errors - we handle them in onclose
+            // The browser will show connection errors, but we provide better user feedback
         };
         
-        ws.onclose = (event) => {
+        ws.onclose = () => {
             clearTimeout(connectionTimeout);
             gameState.connected = false;
             gameState.isConnecting = false;
             
-            // Log close event details
-            console.log('WebSocket closed. Code:', event.code, 'Reason:', event.reason || 'No reason provided');
-            
-            // Only show error if we've exhausted retry attempts
-            if (gameState.reconnectAttempts >= gameState.maxReconnectAttempts) {
-                updateConnectionStatus('offline', 'Server not running - Start server with: npm start');
-            } else if (gameState.reconnectAttempts < gameState.maxReconnectAttempts) {
-                // Auto-retry connection
+            // Auto-retry if we haven't exceeded max attempts
+            if (gameState.reconnectAttempts < gameState.maxReconnectAttempts) {
                 updateConnectionStatus('offline', 'Reconnecting...');
                 setTimeout(() => {
                     if (!gameState.connected) {
@@ -917,11 +836,10 @@ function connectWebSocket() {
                     }
                 }, 2000);
             } else {
-                updateConnectionStatus('offline', 'Disconnected');
+                updateConnectionStatus('offline', 'Server not running - Start server with: npm start');
             }
         };
     } catch (error) {
-        console.error('Error creating WebSocket connection:', error);
         gameState.isConnecting = false;
         updateConnectionStatus('offline', 'Connection error - Use "Connect to Server" to retry');
     }
