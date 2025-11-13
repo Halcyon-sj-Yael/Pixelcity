@@ -2,7 +2,6 @@
 const CONFIG = {
     GRID_SIZE: 50, // 50x50 grid
     CELL_SIZE: 12, // pixels per cell
-    INITIAL_BLOCKS: 100, // starting blocks per player
     WS_URL: 'ws://localhost:8080' // No trailing slash - will be cleaned in connectWebSocket
 };
 
@@ -10,7 +9,6 @@ const CONFIG = {
 const gameState = {
     grid: [],
     selectedColor: '#667eea',
-    blocksRemaining: CONFIG.INITIAL_BLOCKS,
     totalPlaced: 0,
     ws: null,
     connected: false,
@@ -22,7 +20,8 @@ const gameState = {
     serverName: 'Local Server', // Server name for display
     chatMessages: [],
     eraseMode: false,
-    history: [] // Track placed blocks for undo
+    history: [], // Track placed blocks for undo
+    isMouseDown: false // Track if mouse/touch is being held down
 };
 
 // Color Palette - Organized by Categories
@@ -262,19 +261,53 @@ function setupEventListeners() {
         return;
     }
     
-    // Mouse events
-    canvas.addEventListener('click', handleCanvasClick);
-    canvas.addEventListener('mousemove', handleCanvasHover);
+    // Mouse events for drag-to-fill
+    canvas.addEventListener('mousedown', (e) => {
+        gameState.isMouseDown = true;
+        handleCanvasAction(e);
+    });
     
-    // Touch events for mobile
+    canvas.addEventListener('mouseup', () => {
+        gameState.isMouseDown = false;
+    });
+    
+    canvas.addEventListener('mouseleave', () => {
+        gameState.isMouseDown = false;
+    });
+    
+    canvas.addEventListener('mousemove', (e) => {
+        handleCanvasHover(e);
+        if (gameState.isMouseDown) {
+            handleCanvasAction(e);
+        }
+    });
+    
+    // Click event for single clicks
+    canvas.addEventListener('click', handleCanvasClick);
+    
+    // Touch events for mobile drag-to-fill
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        gameState.isMouseDown = true;
         const touch = e.touches[0];
-        const mouseEvent = new MouseEvent('click', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-        });
-        canvas.dispatchEvent(mouseEvent);
+        handleCanvasAction({ clientX: touch.clientX, clientY: touch.clientY });
+    });
+    
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (gameState.isMouseDown && e.touches.length > 0) {
+            const touch = e.touches[0];
+            handleCanvasAction({ clientX: touch.clientX, clientY: touch.clientY });
+        }
+    });
+    
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        gameState.isMouseDown = false;
+    });
+    
+    canvas.addEventListener('touchcancel', () => {
+        gameState.isMouseDown = false;
     });
     
     // Button events
@@ -301,18 +334,11 @@ function setupEventListeners() {
     }
 }
 
-// Handle Canvas Click
-function handleCanvasClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
+// Get grid coordinates from mouse/touch event
+function getGridCoordinates(e) {
     const canvas = document.getElementById('gameCanvas');
-    if (!canvas) {
-        console.error('Canvas not found in click handler');
-        return;
-    }
+    if (!canvas) return null;
     
-    // Get canvas position and actual size
     const rect = canvas.getBoundingClientRect();
     const canvasWidth = canvas.width;
     const canvasHeight = canvas.height;
@@ -323,17 +349,30 @@ function handleCanvasClick(e) {
     const scaleX = canvasWidth / displayWidth;
     const scaleY = canvasHeight / displayHeight;
     
-    // Get click position relative to canvas
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    // Get position relative to canvas
+    const posX = e.clientX - rect.left;
+    const posY = e.clientY - rect.top;
     
     // Convert to canvas coordinates
-    const canvasX = clickX * scaleX;
-    const canvasY = clickY * scaleY;
+    const canvasX = posX * scaleX;
+    const canvasY = posY * scaleY;
     
     // Calculate grid cell coordinates
     const x = Math.floor(canvasX / CONFIG.CELL_SIZE);
     const y = Math.floor(canvasY / CONFIG.CELL_SIZE);
+    
+    return { x, y };
+}
+
+// Handle canvas action (click or drag)
+function handleCanvasAction(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const coords = getGridCoordinates(e);
+    if (!coords) return;
+    
+    const { x, y } = coords;
     
     if (x >= 0 && x < CONFIG.GRID_SIZE && y >= 0 && y < CONFIG.GRID_SIZE) {
         // Check if in erase mode
@@ -342,12 +381,9 @@ function handleCanvasClick(e) {
         } else {
             // Normal placement mode
             if (!gameState.selectedColor) {
-                alert('Please select a color first!');
-                return;
-            }
-            
-            if (gameState.blocksRemaining <= 0) {
-                alert('You have no blocks remaining! Work with others to build.');
+                if (!gameState.isMouseDown) {
+                    alert('Please select a color first!');
+                }
                 return;
             }
             
@@ -356,18 +392,22 @@ function handleCanvasClick(e) {
     }
 }
 
+// Handle Canvas Click
+function handleCanvasClick(e) {
+    handleCanvasAction(e);
+}
+
 // Handle Canvas Hover
 function handleCanvasHover(e) {
     const canvas = document.getElementById('gameCanvas');
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / CONFIG.CELL_SIZE);
-    const y = Math.floor((e.clientY - rect.top) / CONFIG.CELL_SIZE);
+    if (!canvas) return;
     
-    if (x >= 0 && x < CONFIG.GRID_SIZE && y >= 0 && y < CONFIG.GRID_SIZE) {
+    const coords = getGridCoordinates(e);
+    if (coords && coords.x >= 0 && coords.x < CONFIG.GRID_SIZE && coords.y >= 0 && coords.y < CONFIG.GRID_SIZE) {
         if (gameState.eraseMode) {
             canvas.style.cursor = 'not-allowed';
         } else {
-            canvas.style.cursor = gameState.blocksRemaining > 0 ? 'crosshair' : 'not-allowed';
+            canvas.style.cursor = 'crosshair';
         }
     } else {
         canvas.style.cursor = 'default';
@@ -393,7 +433,6 @@ function placeBlock(x, y, color) {
     
     // Place block in grid
     gameState.grid[y][x] = color;
-    gameState.blocksRemaining--;
     gameState.totalPlaced++;
     
     // Add to history for undo
@@ -459,7 +498,6 @@ function removeBlock(x, y) {
     
     // Remove block from grid
     gameState.grid[y][x] = null;
-    gameState.blocksRemaining++;
     gameState.totalPlaced--;
     
     // Add to history for undo
@@ -513,7 +551,6 @@ function undoLast() {
         // Undo a placement - remove the block
         if (gameState.grid[lastAction.y] && gameState.grid[lastAction.y][lastAction.x] === lastAction.color) {
             gameState.grid[lastAction.y][lastAction.x] = null;
-            gameState.blocksRemaining++;
             gameState.totalPlaced--;
             drawGrid();
             updateUI();
@@ -522,7 +559,6 @@ function undoLast() {
         // Undo a removal - restore the block
         if (gameState.grid[lastAction.y]) {
             gameState.grid[lastAction.y][lastAction.x] = lastAction.color;
-            gameState.blocksRemaining--;
             gameState.totalPlaced++;
             drawGrid();
             updateUI();
@@ -560,7 +596,6 @@ function clearSelection() {
 function resetGrid() {
     if (confirm('Are you sure you want to reset the entire grid? This will clear all blocks.')) {
         initializeGrid();
-        gameState.blocksRemaining = CONFIG.INITIAL_BLOCKS;
         gameState.totalPlaced = 0;
         gameState.history = []; // Clear history
         
@@ -665,10 +700,6 @@ function addChatMessage(username, message, type = 'other') {
 
 // Update UI
 function updateUI() {
-    const blocksRemainingEl = document.getElementById('blocksRemaining');
-    if (blocksRemainingEl) {
-        blocksRemainingEl.textContent = gameState.blocksRemaining;
-    }
     document.getElementById('totalPlaced').textContent = gameState.totalPlaced;
 }
 
@@ -882,7 +913,6 @@ function handleWebSocketMessage(message) {
             
         case 'gridReset':
             initializeGrid();
-            gameState.blocksRemaining = CONFIG.INITIAL_BLOCKS;
             gameState.totalPlaced = 0;
             gameState.history = []; // Clear history
             updateUI();
